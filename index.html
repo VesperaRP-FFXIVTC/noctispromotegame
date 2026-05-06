@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VESPERA — 黃昏的異空間</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Noto+Serif+TC:wght@300;400&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ===== ENTRY SCREEN ===== -->
+    <div id="screen-entry" class="screen active">
+      <div class="entry-bg"></div>
+      <div class="entry-content">
+        <h1 class="title-main">VESPERA</h1>
+        <p class="title-sub">黃昏的異空間</p>
+        <div class="story-intro">
+          <p>你不知道自己是怎麼來到這裡的。</p>
+          <p>四周瀰漫著淡淡的霧氣，遠處有兩盞燈——<br/>
+          一盞暖黃，一盞幽紫。</p>
+          <p>有人說，只要選擇其中一條路，就能回到現實。<br/>
+          但也有人說，有些路，一旦踏入，就再也回不來了。</p>
+          <p class="intro-note">— 冒險者公會的委託，正等著你。</p>
+        </div>
+        <div class="name-input-area">
+          <label for="player-name">你的名字</label>
+          <input type="text" id="player-name" placeholder="輸入你的名字..." maxlength="20" />
+          <button id="btn-start" onclick="startGame()">踏入 VESPERA</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== GAME SCREEN ===== -->
+    <div id="screen-game" class="screen">
+      <div id="game-bg" class="game-bg"></div>
+      <div id="game-overlay" class="game-overlay"></div>
+
+      <!-- Character sprite -->
+      <div id="char-sprite" class="char-sprite"></div>
+
+      <!-- Dialogue box -->
+      <div id="dialogue-box" class="dialogue-box">
+        <div id="speaker-name" class="speaker-name"></div>
+        <div id="dialogue-text" class="dialogue-text"></div>
+        <div id="dialogue-next" class="dialogue-next">▼</div>
+      </div>
+
+      <!-- Choices -->
+      <div id="choices-box" class="choices-box hidden"></div>
+
+      <!-- Puzzle overlay -->
+      <div id="puzzle-overlay" class="puzzle-overlay hidden">
+        <div id="puzzle-container" class="puzzle-container"></div>
+      </div>
+
+      <!-- Inventory / clues collected -->
+      <div id="clue-panel" class="clue-panel hidden">
+        <div class="clue-title">收集到的線索</div>
+        <div id="clue-list"></div>
+      </div>
+      <button id="btn-clues" class="btn-clues hidden" onclick="toggleClues()">線索</button>
+      <!-- 測試用跳過按鈕 -->
+      <button id="btn-skip" class="btn-skip" onclick="skipToScene()" title="測試用：跳過到下一幕">⏩ 跳過</button>
+    </div>
+
+    <!-- ===== COUNTDOWN SCREEN ===== -->
+    <div id="screen-countdown" class="screen">
+      <div class="countdown-bg"></div>
+      <div class="countdown-content">
+        <p class="countdown-label">NOCTIS</p>
+        <p class="countdown-sublabel">即將開幕</p>
+        <div id="countdown-timer" class="countdown-timer">
+          <span id="cd-days">00</span><span class="cd-sep">天</span>
+          <span id="cd-hours">00</span><span class="cd-sep">時</span>
+          <span id="cd-mins">00</span><span class="cd-sep">分</span>
+          <span id="cd-secs">00</span><span class="cd-sep">秒</span>
+        </div>
+        <a id="btn-official" href="https://vesperarp-ffxivtc.github.io/Noctistestingonly/index.html" target="_blank" class="btn-official hidden">前往 NOCTIS 官網</a>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="js/scenes.js"></script>
+  <script src="js/puzzles.js"></script>
+  <script src="js/engine.js"></script>
+</body>
+</html>
