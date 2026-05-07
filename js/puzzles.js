@@ -35,8 +35,16 @@ function buildCodeLock(container, sceneId) {
       <input class="code-digit" id="d2" type="text" maxlength="1" inputmode="numeric" />
       <input class="code-digit" id="d3" type="text" maxlength="1" inputmode="numeric" />
     </div>
-    <button class="puzzle-btn" onclick="checkCodeLock('${sceneId}')">確認</button>
+    <div style="display:flex;gap:0.8rem;justify-content:center;margin-top:0.6rem;">
+      <button class="puzzle-btn" onclick="checkCodeLock('${sceneId}')">確認</button>
+      <button class="puzzle-btn puzzle-btn-secondary" onclick="showCluesPopup()">查看線索</button>
+    </div>
     <div class="puzzle-error" id="lock-error"></div>
+    <div id="clues-popup" class="clues-popup hidden">
+      <div class="clues-popup-title">已收集的線索</div>
+      <div id="clues-popup-list"></div>
+      <button class="puzzle-btn" style="margin-top:0.8rem;" onclick="hideCluesPopup()">關閉</button>
+    </div>
   `;
 
   // Auto-advance between digit inputs
@@ -57,6 +65,29 @@ function buildCodeLock(container, sceneId) {
   });
 
   document.getElementById('d0').focus();
+}
+
+function showCluesPopup() {
+  const popup = document.getElementById('clues-popup');
+  const list  = document.getElementById('clues-popup-list');
+  if (!popup || !list) return;
+  list.innerHTML = '';
+  if (typeof collectedClues !== 'undefined' && collectedClues.length > 0) {
+    collectedClues.forEach(clue => {
+      const item = document.createElement('div');
+      item.className = 'clues-popup-item';
+      item.textContent = '• ' + clue.clue_note;
+      list.appendChild(item);
+    });
+  } else {
+    list.innerHTML = '<div class="clues-popup-item" style="opacity:0.5;">還沒有收集到任何線索。</div>';
+  }
+  popup.classList.remove('hidden');
+}
+
+function hideCluesPopup() {
+  const popup = document.getElementById('clues-popup');
+  if (popup) popup.classList.add('hidden');
 }
 
 function checkCodeLock(sceneId) {
@@ -86,7 +117,7 @@ function checkCodeLock(sceneId) {
 // 階段一 (rune_match)：牆上有四組符文對照表殘片，玩家需要找出缺失的符文
 // 階段二 (symbol_doors)：用符文知識選出正確的門
 //
-// 邏輯：VESPERA的符文系統以「時序」排列：月→星→日
+// 邏輯：VESPERA的符文系統以「時序」排列：日→星→月（白晝→黃昏→黑夜）
 // 線索牆上殘缺的符文提示：黃昏之後（月），黑夜之前（日），中間是？（星 ✦）
 
 // ── Act 2 Phase 1: 符文對照謎題 ─────────────────────────────────────────────
@@ -110,7 +141,7 @@ function buildRuneMatch(container, sceneId) {
     <div class="puzzle-title">符文殘壁</div>
     <div class="puzzle-desc">
       走廊牆上刻著褪色的符文，旁邊有一行說明：<br/>
-      <em style="color:rgba(192,132,252,0.8)">「VESPERA之語，以時序為序。從夜的盡頭，至日的起點，依序排列，方能通行。」</em><br/>
+      <em style="color:rgba(192,132,252,0.8)">「VESPERA 之語，以時序為序。從日的起點，經黃昏之星，至夜的盡頭，依序排列，方能通行。」</em><br/>
       <span style="font-size:0.8rem;color:rgba(245,234,216,0.5);margin-top:0.5rem;display:block;">拖曳符文石板，排列成正確的時間順序。</span>
     </div>
     <div id="rune-list" style="display:flex;flex-direction:row;gap:1rem;justify-content:center;margin:1.5rem 0;flex-wrap:wrap;"></div>
@@ -179,8 +210,8 @@ function renderRuneList(runes) {
 }
 
 function checkRuneOrder(sceneId) {
-  // 正確順序：☽ → ✦ → ☀（夜的盡頭→黃昏→日的起點）
-  const correct = ['☽', '✦', '☀'];
+  // 正確順序：☀ → ✦ → ☽（日的起點→黃昏→夜的盡頭，與「白晝→黃昏→黑夜」循環一致）
+  const correct = ['☀', '✦', '☽'];
   const isCorrect = runeOrder.every((s, i) => s === correct[i]);
   const errorEl = document.getElementById('rune-error');
 
@@ -196,7 +227,7 @@ function checkRuneOrder(sceneId) {
     }, 1600);
   } else {
     errorEl.style.color = '#e05555';
-    errorEl.textContent = '順序不對。VESPERA的時序，不是以光明為起點的……';
+    errorEl.textContent = '順序不對。VESPERA 的時序，是從光走向暗的……';
     setTimeout(() => { errorEl.textContent = ''; }, 2000);
   }
 }
@@ -266,9 +297,9 @@ function selectDoor(idx, sceneId) {
     }, 1600);
   } else {
     errorEl.style.color = '#e05555';
-    errorEl.textContent = door.symbol === '☽'
-      ? '這扇門紋絲不動。月的時序，在更早的地方。'
-      : '這扇門紋絲不動。日的時序，已是盡頭，不是此刻。';
+    errorEl.textContent = door.symbol === '☀'
+      ? '這扇門紋絲不動。日的時序，已是過去，不是此刻。'
+      : '這扇門紋絲不動。夜的時序，在更深的地方。';
     const el = document.querySelectorAll('.symbol-door')[idx];
     el.style.borderColor = '#e05555';
     setTimeout(() => {
@@ -289,7 +320,7 @@ const MEMORY_FRAGMENTS = [
   { id: 'm4', text: '「如果你看見這些文字，代表你找到了這裡。」',order: 4, real: true  },
   { id: 'm5', text: '「繼續往前走吧。NOCTIS，在等著你。」',      order: 5, real: true  },
   // 干擾碎片（內容模糊，充滿迷霧影響的殘影）
-  { id: 'mx1', text: '「……我不應該回頭。DIRUNE已經很遠了……」', order: null, real: false },
+  { id: 'mx1', text: '「……我不應該回頭。DIRUNE 已經很遠了……」', order: null, real: false },
   { id: 'mx2', text: '「光太刺眼了。也許留在這裡……也不壞……」', order: null, real: false },
 ];
 
@@ -305,7 +336,7 @@ function buildMemoryOrder(container, sceneId) {
     <div class="puzzle-title">記憶碎片</div>
     <div class="puzzle-desc">
       門上的文字殘缺不全，混入了迷霧的干擾。<br/>
-      從碎片中辨認出Inu真正的記憶，依序排列。<br/>
+      從碎片中辨認出 Inu 真正的記憶，依序排列。<br/>
       <em style="color:rgba(192,132,252,0.7);font-size:0.8rem;">（點擊碎片加入排列，再次點擊已選碎片可移除）</em>
     </div>
     <div style="display:flex;gap:1rem;margin:0.8rem 0;align-items:flex-start;flex-wrap:wrap;">
@@ -430,7 +461,7 @@ function checkMemoryOrder(sceneId) {
   const hasDecoy = memorySelected.some(id => id === 'mx1' || id === 'mx2');
   if (hasDecoy) {
     errorEl.style.color = '#e05555';
-    errorEl.textContent = '有些碎片不屬於Inu的記憶——那是迷霧的殘影。';
+    errorEl.textContent = '有些碎片不屬於 Inu 的記憶——那是迷霧的殘影。';
     setTimeout(() => { errorEl.textContent = ''; }, 2200);
     return;
   }
@@ -458,25 +489,61 @@ function checkMemoryOrder(sceneId) {
 let whisperBattleState = null;
 
 const WHISPER_LINES = [
-  '留下來吧……',
-  '這裡不是更美嗎？',
-  '你真的想回去嗎……',
-  '外面的世界，有什麼值得留戀？',
-  '讓音樂包裹你……',
-  '你的疲憊，這裡都能給你解答',
-  '忘記一切，多輕鬆……',
-  '黑夜才是真正的家',
-  '為什麼要抵抗呢……',
-  '這份溫柔，是真實的',
-  '你不孤單，這裡永遠有你',
-  '只要再往前一步……',
-  '你已經夠努力了',
-  '放棄，不是失敗',
-  '這裡沒有人會評判你',
-  '讓我替你承擔一切',
-  '你的名字，我會永遠記得',
-  '……你不累嗎',
+  '那些你關燈之後才敢想的……',
+  '歷史紀錄刪掉的那個畫面，我都記得',
+  '你最害羞的那個，正好是我最熟的',
+  '怕被指責的那個念頭——這裡沒人會指責',
+  '外面那些眼睛，看不進來',
+  '你藏在心底最深的那個，攤開來吧',
+  '假裝沒興趣，是不是很累？',
+  '白天的你，跟現在的你，可以是兩個人',
+  '沒人會在路上對你露出「我知道你昨晚」的眼神',
+  '你那半秒鐘的停留，我都記得',
+  '說不出口的，我替你說',
+  '你想要的，這裡都允許',
+  '你最不敢承認的那個——正好是這裡的常客',
+  '解開一顆扣子，又不會死',
+  '你已經偷偷想很久了，不是嗎',
+  '皮膚對皮膚，又不會少一塊',
+  '進來嘛——只是看看',
+  '你經過他身邊的那一秒，我替你停下來了',
 ];
+
+// 根據玩家在 Act2/Act3 的選擇傾向，注入針對性低語
+function _wbGetWhisperLines() {
+  const lines = [...WHISPER_LINES];
+  const flags = (typeof playerFlags !== 'undefined') ? playerFlags : {};
+  const name  = (typeof playerName !== 'undefined' && playerName) ? playerName : '你';
+
+  // act2_sense: 玩家承認感受到 → NOCTIS 順著走
+  if (flags.act2_sense === 'feel') {
+    lines.push(`你已經感覺到了，${name}……`);
+    lines.push('既然身體已經回應了，何必再裝呢');
+    lines.push('那股催促，是你自己想要的');
+    lines.push('你說「有人在很近的地方叫我」——那就是我');
+  }
+  // act2_sense: 玩家否認 → NOCTIS 揭穿偽裝
+  if (flags.act2_sense === 'numb') {
+    lines.push(`「只是霧」——${name}，你騙得了貓糕，騙不了我`);
+    lines.push('連自己想要什麼都不敢承認');
+    lines.push('那才是最累的，不是嗎');
+    lines.push('白天那些藉口，這裡用不上');
+  }
+  // act3_view: 玩家同情 Inu → NOCTIS 把 Inu 當作誘餌
+  if (flags.act3_view === 'empathy') {
+    lines.push('Inu 在裡面，比你想像的更放鬆');
+    lines.push('你要不要也試試「不孤獨」是什麼感覺');
+    lines.push('你說過——他一定很孤獨。那就進來陪他啊');
+  }
+  // act3_view: 玩家質疑 → NOCTIS 反問
+  if (flags.act3_view === 'cynic') {
+    lines.push('「怎麼可能甘願留下」？你看著好了');
+    lines.push('連 Inu 都鬆開了領口');
+    lines.push('你那麼篤定外面更好嗎？');
+  }
+
+  return lines;
+}
 
 // 戰前說明畫面：玩家點擊「準備好了」後才啟動彈幕
 function _showBattlePrelude(onReady) {
@@ -517,7 +584,7 @@ function _showBattlePrelude(onReady) {
         font-size: 0.85rem; line-height: 2;
         color: rgba(245,234,216,0.7); margin-bottom: 2rem;
       ">
-        NOCTIS的迴廊將試圖侵蝕你的意志。<br/>
+        NOCTIS 的迴廊將試圖侵蝕你的意志。<br/>
         你必須撐過誘惑之語的衝擊，才能繼續前進。<br/>
         <span style="color:rgba(212,168,75,0.85);">移動滑鼠</span>閃避彈幕，
         <span style="color:rgba(212,168,75,0.85);">按 F 鍵召喚貓糕</span>清除一切精神擾亂及所有彈幕。<br/>
@@ -858,7 +925,7 @@ function startWhisperBattle(onWin, onLose) {
   whisperBattleState.progressTimer = setInterval(_wbTickProgress, 200);
   _wbStartWave(1);
 
-  _wbShowMessage('NOCTIS的聲音試圖侵蝕你的意志……');
+  _wbShowMessage('NOCTIS 的聲音試圖侵蝕你的意志……');
   setTimeout(() => _wbShowMessage('移動滑鼠閃避誘惑之語，按 F 鍵呼喚貓糕獲得護盾'), 2800);
 }
 
@@ -1191,7 +1258,8 @@ function _wbSpawnBullet(speed, wave) {
 
   const W = window.innerWidth;
   const H = window.innerHeight;
-  const text = WHISPER_LINES[Math.floor(Math.random() * WHISPER_LINES.length)];
+  const _lines = _wbGetWhisperLines();
+  const text = _lines[Math.floor(Math.random() * _lines.length)];
 
   const side = Math.floor(Math.random() * 4);
   let startX, startY, dirX, dirY;
@@ -1248,7 +1316,8 @@ function _wbSpawnAimedBullet(speed) {
   const dirX = (dx/dist) * speed;
   const dirY = (dy/dist) * speed;
 
-  const text = WHISPER_LINES[Math.floor(Math.random() * WHISPER_LINES.length)];
+  const _lines = _wbGetWhisperLines();
+  const text = _lines[Math.floor(Math.random() * _lines.length)];
   const bullet = document.createElement('div');
   bullet.style.cssText = `
     position:absolute;
@@ -1281,7 +1350,8 @@ function _wbSpawnBurst(speed) {
     const dirX = -Math.cos(angle) * speed;
     const dirY = -Math.sin(angle) * speed;
 
-    const text = '……' + WHISPER_LINES[Math.floor(Math.random() * WHISPER_LINES.length)];
+    const _lines = _wbGetWhisperLines();
+    const text = '……' + _lines[Math.floor(Math.random() * _lines.length)];
     const bullet = document.createElement('div');
     bullet.style.cssText = `
       position:absolute;
@@ -1401,7 +1471,7 @@ function _wbHitPlayer() {
   if (willEl) willEl.textContent = '❤'.repeat(Math.max(0, s.will)) + '🖤'.repeat(5 - Math.max(0, s.will));
 
   const hitMessages = [
-    '記住，我們是來找Inu的……！',
+    '記住，我們是來找 Inu 的……！',
     '喵！別聽那些聲音——',
     '……你要撐住！',
     '不要放棄……！',

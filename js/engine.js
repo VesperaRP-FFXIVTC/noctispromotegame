@@ -7,13 +7,23 @@ let typewriterTimer = null;
 let collectedClues = [];
 let cluesVisible = false;
 
+// 玩家選擇傾向 flag（影響後續 NOCTIS 低語、Inu 對話）
+// act2_sense: 'feel' | 'numb'        — Act2 走廊：感受到慾望 / 只是霧
+// act3_view:  'empathy' | 'cynic'    — Act3 入口：Inu 一定很孤獨 / 怎可能甘願留下
+const playerFlags = {
+  act2_sense: null,
+  act3_view:  null,
+};
+
+let pendingCountdown = false;
+
 // ── Audio ─────────────────────────────────────────────────────────────────────
 
 const BGM = {
   dirune: new Audio('assets/audio/bgm-dirune.mp3'),
   mist:    new Audio('assets/audio/bgm-mist.mp3'),
   battle:  new Audio('assets/audio/bgm-battle.mp3'),
-  // noctis: new Audio('assets/audio/bgm-noctis.mp3'),
+  noctis:  new Audio('assets/audio/bgm-noctis.mp3'),
 };
 
 // Configure all tracks
@@ -132,6 +142,11 @@ function loadScene(sceneId) {
   if (!scene) { console.warn('Scene not found:', sceneId); return; }
   currentScene = sceneId;
 
+  // 動態文字：scene.textFn(flags, name) 可覆寫 scene.text
+  if (typeof scene.textFn === 'function') {
+    scene.text = scene.textFn(playerFlags, playerName);
+  }
+
   // ── BGM routing ──
   // Prologue + Act 1 = DIRUNE warm piano
   // Act 2 + Act 3    = mist track (add bgm-mist.mp3 later)
@@ -148,8 +163,14 @@ function loadScene(sceneId) {
   // Background
   if (scene.bg) {
     const bg = document.getElementById('game-bg');
-    bg.style.backgroundImage = `url('assets/images/${scene.bg}')`;
-    bg.style.backgroundColor = scene.bg ? '' : '#0d0a0f';
+    if (scene.bg === 'void') {
+      // 特殊：VESPERA 異空間，純色虛空，不載入圖檔
+      bg.style.backgroundImage = 'none';
+      bg.style.backgroundColor = '#050308';
+    } else {
+      bg.style.backgroundImage = `url('assets/images/${scene.bg}')`;
+      bg.style.backgroundColor = '';
+    }
   }
 
   // Overlay tint for purple sections
@@ -270,6 +291,16 @@ function advanceDialogue() {
   // If puzzle is open, don't advance
   if (!document.getElementById('puzzle-overlay').classList.contains('hidden')) return;
 
+  // 倒計時待跳轉：玩家點擊後切到 countdown 畫面
+  if (pendingCountdown) {
+    pendingCountdown = false;
+    stopBgm(2000);
+    fadeToScreen('screen-countdown', () => {
+      startCountdown();
+    });
+    return;
+  }
+
   // If clue scene, only block advance when clues remain uncollected
   const scene = SCENES[currentScene];
   if (scene && scene.clues) {
@@ -307,6 +338,10 @@ function showChoices(choices) {
     btn.className = 'choice-btn';
     btn.textContent = choice.text.replace('%name%', playerName);
     btn.onclick = () => {
+      // 記錄選擇傾向
+      if (choice.flag) {
+        Object.assign(playerFlags, choice.flag);
+      }
       box.classList.add('hidden');
       loadScene(choice.next);
     };
@@ -336,20 +371,22 @@ function placeClues(clues, sceneId) {
 
     const dot = document.createElement('div');
     dot.style.cssText = `
-      width: 12px; height: 12px;
+      width: 22px; height: 22px;
       border-radius: 50%;
-      background: rgba(212,168,75,0.8);
-      box-shadow: 0 0 10px rgba(212,168,75,0.6);
-      animation: pulseDot 1.5s ease-in-out infinite;
+      background: rgba(255,210,120,0.95);
+      box-shadow: 0 0 18px rgba(255,200,100,0.9), 0 0 32px rgba(212,168,75,0.5);
+      border: 2px solid rgba(255,235,180,0.8);
+      animation: pulseDot 1.4s ease-in-out infinite;
     `;
 
     const label = document.createElement('div');
     label.style.cssText = `
-      position: absolute; top: 18px; left: 50%;
+      position: absolute; top: 30px; left: 50%;
       transform: translateX(-50%);
-      font-size: 0.7rem; color: rgba(212,168,75,0.8);
+      font-size: 0.8rem; color: rgba(255,220,160,0.95);
       white-space: nowrap; pointer-events: none;
       font-family: 'Noto Serif TC', serif;
+      text-shadow: 0 0 6px rgba(0,0,0,0.9), 0 1px 2px rgba(0,0,0,0.8);
     `;
     label.textContent = clue.label;
 
@@ -366,8 +403,8 @@ function placeClues(clues, sceneId) {
     style.id = 'pulse-style';
     style.textContent = `
       @keyframes pulseDot {
-        0%, 100% { transform: scale(1); opacity: 0.8; }
-        50% { transform: scale(1.4); opacity: 1; }
+        0%, 100% { transform: scale(1); opacity: 0.95; }
+        50% { transform: scale(1.5); opacity: 1; box-shadow: 0 0 28px rgba(255,200,100,1), 0 0 50px rgba(212,168,75,0.7); }
       }
     `;
     document.head.appendChild(style);
@@ -399,7 +436,11 @@ function collectClue(clue, sceneId) {
     const remaining = scene.clues.filter(c => !collectedClues.find(cc => cc.id === c.id));
     if (remaining.length === 0) {
       document.getElementById('dialogue-box')._onComplete = () => {
-        showPuzzle(scene.puzzle, sceneId);
+        if (scene.next) {
+          loadScene(scene.next);
+        } else if (scene.puzzle) {
+          showPuzzle(scene.puzzle, sceneId);
+        }
       };
     }
   }
@@ -436,11 +477,8 @@ function handleAction(action, scene, sceneId) {
       document.getElementById('game-overlay').style.transition = 'background 2s ease';
       break;
     case 'goto_countdown':
-      setTimeout(() => {
-        fadeToScreen('screen-countdown', () => {
-          startCountdown();
-        });
-      }, 2000);
+      // 不自動跳——等玩家點擊對話框再切到倒計時
+      pendingCountdown = true;
       break;
     case 'start_whisper_battle':
       // 等待對話完全顯示完畢後再開始戰鬥
@@ -568,6 +606,7 @@ const SCENE_SKIP_MAP = {
   act1_arrive:               'act2_enter',
   act1_kaogao_react:         'act2_enter',
   act1_explore:              'act2_enter',
+  act1_at_door:              'act2_enter',
   act1_solved:               'act2_enter',
   act1_enter_mist:           'act2_enter',
   // Act 2 scenes → skip to Act 3
@@ -598,11 +637,17 @@ const SCENE_SKIP_MAP = {
   act3_corridor_voice_1:     'act4_enter',
   act3_corridor_kaogao_2:    'act4_enter',
   act3_corridor_voice_2:     'act4_enter',
+  act3_corridor_voice_2b:    'act4_enter',
   act3_corridor_player_react:'act4_enter',
   act3_corridor_voice_3:     'act4_enter',
+  act3_corridor_voice_3b:    'act4_enter',
+  act3_corridor_voice_3c:    'act4_enter',
   act3_corridor_kaogao_3:    'act4_enter',
+  act3_corridor_kaogao_3b:   'act4_enter',
   act3_corridor_voice_4:     'act4_enter',
+  act3_corridor_voice_4b:    'act4_enter',
   act3_corridor_battle_intro:'act4_enter',
+  act3_corridor_battle_intro_b:'act4_enter',
   act3_whisper_battle:       'act4_enter',
   act3_corridor_survived:    'act4_enter',
   act3_corridor_survived_kaogao: 'act4_enter',
@@ -610,22 +655,40 @@ const SCENE_SKIP_MAP = {
   act3_choice:               'act4_enter',
   // Act 4 scenes → countdown
   act4_enter:                null,
+  act4_enter_b:              null,
   act4_environment:          null,
+  act4_environment_b:        null,
   act4_inu_appear:           null,
+  act4_inu_appear_b:         null,
   act4_inu_greet:            null,
   act4_kaogao_sees_inu:      null,
   act4_inu_kaogao_response:  null,
+  act4_inu_kaogao_response_b: null,
+  act4_inu_callback:         null,
   act4_dialogue_2:           null,
   act4_inu_response:         null,
+  act4_inu_response_b:       null,
+  act4_inu_response_c:       null,
   act4_inu_question:         null,
   act4_player_choice:        null,
   act4_response_a:           null,
   act4_response_b:           null,
   act4_inu_invite:           null,
+  act4_inu_invite_b:         null,
   act4_kaogao_react:         null,
   act4_final_choice:         null,
   act4_ending:               null,
+  act4_ending_a_close_pre:   null,
+  act4_ending_a_kaogao:      null,
+  act4_ending_a_kaogao_b:    null,
+  act4_ending_a_close:       null,
+  act4_ending_a_close_b:     null,
   act4_ending_2:             null,
+  act4_ending_2b:            null,
+  act4_ending_b_kaogao:      null,
+  act4_ending_b_kaogao_b:    null,
+  act4_ending_b_close:       null,
+  act4_ending_b_close_b:     null,
 };
 
 function skipToScene() {
