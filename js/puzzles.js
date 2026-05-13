@@ -319,24 +319,25 @@ const MEMORY_FRAGMENTS = [
   { id: 'm3', text: '「也許，有些黑暗，是值得走進去的。」',      order: 3, real: true  },
   { id: 'm4', text: '「如果你看見這些文字，代表你找到了這裡。」',order: 4, real: true  },
   { id: 'm5', text: '「繼續往前走吧。NOCTIS，在等著你。」',      order: 5, real: true  },
-  // 干擾碎片（內容模糊，充滿迷霧影響的殘影）
-  { id: 'mx1', text: '「……我不應該回頭。DIRUNE 已經很遠了……」', order: null, real: false },
-  { id: 'mx2', text: '「光太刺眼了。也許留在這裡……也不壞……」', order: null, real: false },
+  // 干擾碎片已移除
 ];
 
 let memoryPool = [];    // 待排列的碎片池
 let memorySelected = []; // 已選入的順序列表
 
+let memoryHintUsed = false;
+
 function buildMemoryOrder(container, sceneId) {
-  // 打亂全部碎片
-  memoryPool = [...MEMORY_FRAGMENTS].sort(() => Math.random() - 0.5).map(f => f.id);
+  // 只保留5塊真實碎片，移除干擾碎片
+  memoryPool = [...MEMORY_FRAGMENTS].filter(f => f.real).sort(() => Math.random() - 0.5).map(f => f.id);
   memorySelected = [];
+  memoryHintUsed = false;
 
   container.innerHTML = `
     <div class="puzzle-title">記憶碎片</div>
     <div class="puzzle-desc">
-      門上的文字殘缺不全，混入了迷霧的干擾。<br/>
-      從碎片中辨認出 Inu 真正的記憶，依序排列。<br/>
+      門上的文字殘缺不全，順序已被迷霧打亂。<br/>
+      將 Inu 的記憶依正確的時序排列，方能開門。<br/>
       <em style="color:rgba(192,132,252,0.7);font-size:0.8rem;">（點擊碎片加入排列，再次點擊已選碎片可移除）</em>
     </div>
     <div style="display:flex;gap:1rem;margin:0.8rem 0;align-items:flex-start;flex-wrap:wrap;">
@@ -349,8 +350,12 @@ function buildMemoryOrder(container, sceneId) {
         <div id="memory-selected-list" style="display:flex;flex-direction:column;gap:0.4rem;min-height:60px;border:1px dashed rgba(155,89,182,0.25);padding:0.4rem;"></div>
       </div>
     </div>
-    <button class="puzzle-btn" onclick="checkMemoryOrder('${sceneId}')">確認順序</button>
+    <div style="display:flex;gap:0.8rem;justify-content:center;margin-top:0.6rem;">
+      <button class="puzzle-btn" onclick="checkMemoryOrder('${sceneId}')">確認順序</button>
+      <button class="puzzle-btn puzzle-btn-secondary" id="memory-hint-btn" onclick="showMemoryHint()">✦ 提示</button>
+    </div>
     <div class="puzzle-error" id="memory-error"></div>
+    <div id="memory-hint-text" style="display:none;margin-top:0.8rem;padding:0.8rem 1rem;background:rgba(212,168,75,0.07);border:1px solid rgba(212,168,75,0.25);font-family:'Noto Serif TC',serif;font-size:0.85rem;color:rgba(212,168,75,0.9);line-height:1.7;"></div>
   `;
 
   renderMemoryPool();
@@ -447,6 +452,32 @@ function removeMemoryFrag(id) {
   renderMemorySelected();
 }
 
+function showMemoryHint() {
+  const hintEl = document.getElementById('memory-hint-text');
+  const hintBtn = document.getElementById('memory-hint-btn');
+  if (!hintEl) return;
+
+  if (memoryHintUsed) {
+    // 第二次點擊收起
+    hintEl.style.display = 'none';
+    memoryHintUsed = false;
+    if (hintBtn) hintBtn.textContent = '✦ 提示';
+    return;
+  }
+
+  // 找出第一塊正確碎片（m1）
+  const firstFrag = MEMORY_FRAGMENTS.find(f => f.id === 'm1');
+  hintEl.innerHTML = `
+    <span style="color:rgba(212,168,75,0.6);font-size:0.75rem;letter-spacing:0.1em;">✦ HINT</span><br/>
+    最初的記憶，從「聽見」開始——<br/>
+    <span style="color:rgba(245,234,216,0.7);font-style:italic;">${firstFrag.text}</span><br/>
+    <span style="font-size:0.75rem;color:rgba(212,168,75,0.5);">這是第一塊。</span>
+  `;
+  hintEl.style.display = 'block';
+  memoryHintUsed = true;
+  if (hintBtn) hintBtn.textContent = '✦ 收起提示';
+}
+
 function checkMemoryOrder(sceneId) {
   const errorEl = document.getElementById('memory-error');
 
@@ -457,32 +488,25 @@ function checkMemoryOrder(sceneId) {
     return;
   }
 
-  // 檢查是否包含干擾碎片
-  const hasDecoy = memorySelected.some(id => id === 'mx1' || id === 'mx2');
-  if (hasDecoy) {
+  // 檢查順序，找出第一個錯誤位置給具體提示
+  const correct = ['m1','m2','m3','m4','m5'];
+  const firstWrong = memorySelected.findIndex((id, i) => id !== correct[i]);
+
+  if (firstWrong !== -1) {
     errorEl.style.color = '#e05555';
-    errorEl.textContent = '有些碎片不屬於 Inu 的記憶——那是迷霧的殘影。';
-    setTimeout(() => { errorEl.textContent = ''; }, 2200);
+    errorEl.textContent = `第 ${firstWrong + 1} 塊的順序不對……再感受一次這段記憶的流向。`;
+    setTimeout(() => { errorEl.textContent = ''; }, 2500);
     return;
   }
-
-  // 檢查順序是否正確
-  const correct = ['m1','m2','m3','m4','m5'];
-  const isCorrect = memorySelected.every((id, i) => id === correct[i]);
-
-  if (isCorrect) {
+  // 全部正確
+  {
     errorEl.style.color = '#2ecc71';
     errorEl.textContent = '碎片拼合的瞬間，門上的文字發出微弱的光芒……';
     setTimeout(() => {
       closePuzzle();
       loadScene('act3_solved');
     }, 1600);
-  } else {
-    errorEl.style.color = '#e05555';
-    errorEl.textContent = '碎片的順序不對。再想想，這些記憶的先後……';
-    setTimeout(() => { errorEl.textContent = ''; }, 2000);
   }
-}
 
 // ── Whisper Battle: 長廊精神攻擊彈幕 (Act 3.5) ───────────────────────────────
 
@@ -546,7 +570,10 @@ function _wbGetWhisperLines() {
 }
 
 // 戰前說明畫面：玩家點擊「準備好了」後才啟動彈幕
-function _showBattlePrelude(onReady) {
+// showEasyOption: 玩家剛剛失敗過，提供簡單難度選項
+let whisperEasyMode = false;
+
+function _showBattlePrelude(onReady, showEasyOption) {
   const prelude = document.createElement('div');
   prelude.id = 'wb-prelude';
   prelude.style.cssText = `
@@ -606,6 +633,20 @@ function _showBattlePrelude(onReady) {
           cursor: pointer;
           transition: all 0.2s;
         ">我已準備好 →</button>
+        ${showEasyOption ? `
+        <button id="wb-prelude-easy" style="
+          background: transparent;
+          border: 1px solid rgba(212,168,75,0.45);
+          color: rgba(212,168,75,0.85);
+          padding: 0.55rem 1.8rem;
+          font-family: 'Noto Serif TC', serif;
+          font-size: 0.85rem;
+          letter-spacing: 0.08em;
+          cursor: pointer;
+          transition: all 0.2s;
+          margin-top: 0.3rem;
+        ">改用簡單難度（讓貓糕多護一下）</button>
+        ` : ''}
         <div style="font-size:0.7rem;color:rgba(245,234,216,0.2);">
           （建議使用耳機）
         </div>
@@ -634,6 +675,30 @@ function _showBattlePrelude(onReady) {
       onReady();
     }, 800);
   });
+
+  if (showEasyOption) {
+    const easyBtn = document.getElementById('wb-prelude-easy');
+    if (easyBtn) {
+      easyBtn.addEventListener('mouseenter', () => {
+        easyBtn.style.background = 'rgba(212,168,75,0.18)';
+        easyBtn.style.borderColor = 'rgba(212,168,75,0.8)';
+        easyBtn.style.color = '#f0d090';
+      });
+      easyBtn.addEventListener('mouseleave', () => {
+        easyBtn.style.background = 'transparent';
+        easyBtn.style.borderColor = 'rgba(212,168,75,0.45)';
+        easyBtn.style.color = 'rgba(212,168,75,0.85)';
+      });
+      easyBtn.addEventListener('click', () => {
+        whisperEasyMode = true;
+        prelude.style.opacity = '0';
+        setTimeout(() => {
+          prelude.remove();
+          onReady();
+        }, 800);
+      });
+    }
+  }
 }
 
 // 注入 SVG filter + keyframe CSS（只注入一次）
@@ -873,8 +938,10 @@ function startWhisperBattle(onWin, onLose) {
 
   whisperBattleState = {
     px: W / 2, py: H * 0.75,
-    will: 5,
-    shieldsLeft: 4,
+    will: whisperEasyMode ? 8 : 5,
+    initialWill: whisperEasyMode ? 8 : 5,
+    shieldsLeft: whisperEasyMode ? 6 : 4,
+    easy: whisperEasyMode,
     shieldActive: false,
     shieldTimer: null,
     invincible: false,
@@ -890,6 +957,12 @@ function startWhisperBattle(onWin, onLose) {
 
   _wbSetPlayerPos(W / 2, H * 0.75);
   _wbUpdateCorruption(0); // 初始無效果
+
+  // 同步意志力與貓糕次數的初始 UI
+  const willEl0 = document.getElementById('wb-will');
+  if (willEl0) willEl0.textContent = '❤'.repeat(whisperBattleState.will);
+  const countEl0 = document.getElementById('wb-shield-count');
+  if (countEl0) countEl0.textContent = '×' + whisperBattleState.shieldsLeft;
 
   overlay.addEventListener('mousemove', e => {
     if (!whisperBattleState.active) return;
@@ -1202,8 +1275,13 @@ function _wbStartWave(wave) {
     return;
   }
 
-  const interval = config.interval;
-  const speed = config.speed;
+  // 簡單難度：彈幕變慢、間隔變寬、指向/散射機率減半
+  const easy = s.easy;
+  const interval = easy ? config.interval * 1.5 : config.interval;
+  const speed = easy ? config.speed * 0.7 : config.speed;
+  const aimedRate = easy ? config.aimed * 0.5 : config.aimed;
+  const burstRate = easy ? config.burst * 0.5 : config.burst;
+  const burstFreq = easy ? config.burstFreq * 1.5 : config.burstFreq;
 
   // 波次警告
   if (wave > 1 && !config.isRest) {
@@ -1226,17 +1304,17 @@ function _wbStartWave(wave) {
     if (!s.active) return;
     _wbSpawnBullet(speed, wave);
     // 指向性彈幕
-    if (Math.random() < config.aimed) _wbSpawnAimedBullet(speed * 0.85);
+    if (Math.random() < aimedRate) _wbSpawnAimedBullet(speed * 0.85);
     // 散射彈幕
-    if (Math.random() < config.burst) _wbSpawnBurst(speed * 0.7);
+    if (Math.random() < burstRate) _wbSpawnBurst(speed * 0.7);
   }, interval);
 
   // 定期散射彈幕（從 Wave 3 開始）
-  if (config.burstFreq > 0) {
+  if (burstFreq > 0) {
     s.burstInterval = setInterval(() => {
       if (!s.active) return;
       _wbSpawnBurst(speed * 0.75);
-    }, config.burstFreq);
+    }, burstFreq);
   }
 
   // 隨波次增加視覺扭曲效果
@@ -1432,7 +1510,9 @@ function _wbHitPlayer() {
 
   s.will--;
   s.invincible = true;
-  const damage = 5 - s.will; // 0=完好，1-4=受傷程度，5=崩潰
+  // damage level：用比例正規化到 0-4，避免 easy 模式的多血量打亂視覺侵蝕
+  const initWill = s.initialWill || 5;
+  const damage = Math.min(4, Math.ceil(((initWill - s.will) / initWill) * 4));
 
   // 清空所有彈幕
   const bulletsContainer = document.getElementById('wb-bullets');
@@ -1468,7 +1548,7 @@ function _wbHitPlayer() {
 
   // 更新意志力顯示
   const willEl = document.getElementById('wb-will');
-  if (willEl) willEl.textContent = '❤'.repeat(Math.max(0, s.will)) + '🖤'.repeat(5 - Math.max(0, s.will));
+  if (willEl) willEl.textContent = '❤'.repeat(Math.max(0, s.will)) + '🖤'.repeat((s.initialWill || 5) - Math.max(0, s.will));
 
   const hitMessages = [
     '記住，我們是來找 Inu 的……！',

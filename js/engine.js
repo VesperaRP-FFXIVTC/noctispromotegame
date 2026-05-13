@@ -426,6 +426,14 @@ function collectClue(clue, sceneId) {
   textEl.textContent = clue.found_text;
   nextEl.style.opacity = '1';
 
+  // 清除打字機狀態，避免 advanceDialogue 誤判為仍在輸出
+  isTyping = false;
+  clearInterval(typewriterTimer);
+  const box = document.getElementById('dialogue-box');
+  box._fullText = clue.found_text;
+  box._pendingComplete = null;
+  box._onComplete = null;
+
   // Remove hotspot
   const hotspot = document.querySelector(`[data-clue-id="${clue.id}"]`);
   if (hotspot) hotspot.remove();
@@ -435,7 +443,8 @@ function collectClue(clue, sceneId) {
   if (scene && scene.clues) {
     const remaining = scene.clues.filter(c => !collectedClues.find(cc => cc.id === c.id));
     if (remaining.length === 0) {
-      document.getElementById('dialogue-box')._onComplete = () => {
+      // 所有線索收集完畢，下一次點擊觸發 puzzle 或下一幕
+      box._onComplete = () => {
         if (scene.next) {
           loadScene(scene.next);
         } else if (scene.puzzle) {
@@ -482,43 +491,31 @@ function handleAction(action, scene, sceneId) {
       break;
     case 'start_whisper_battle':
       // 等待對話完全顯示完畢後再開始戰鬥
+      const startBattle = (isRetry) => {
+        document.getElementById('dialogue-box').style.opacity = '0';
+        _showBattlePrelude(() => {
+          if (BGM.battle) playBgm('battle');
+          startWhisperBattle(
+            () => {
+              stopBgm(1200);
+              document.getElementById('dialogue-box').style.opacity = '1';
+              loadScene('act3_corridor_survived');
+            },
+            () => {
+              stopBgm(2000);
+              document.getElementById('dialogue-box').style.opacity = '1';
+              setTimeout(() => startBattle(true), 1000);
+            }
+          );
+        }, isRetry); // 第二次起 prelude 提供「簡單難度」選項
+      };
+
       const waitForDialogue = () => {
         if (isTyping) {
           setTimeout(waitForDialogue, 100);
           return;
         }
-        setTimeout(() => {
-          document.getElementById('dialogue-box').style.opacity = '0';
-          _showBattlePrelude(() => {
-            if (BGM.battle) playBgm('battle');
-            startWhisperBattle(
-              () => {
-                stopBgm(1200);
-                document.getElementById('dialogue-box').style.opacity = '1';
-                loadScene('act3_corridor_survived');
-              },
-              () => {
-                stopBgm(2000);
-                document.getElementById('dialogue-box').style.opacity = '1';
-                // 重新開始戰鬥
-                setTimeout(() => {
-                  document.getElementById('dialogue-box').style.opacity = '0';
-                  _showBattlePrelude(() => {
-                    if (BGM.battle) playBgm('battle');
-                    startWhisperBattle(
-                      () => {
-                        stopBgm(1200);
-                        document.getElementById('dialogue-box').style.opacity = '1';
-                        loadScene('act3_corridor_survived');
-                      },
-                      arguments.callee // 遞迴呼叫失敗處理
-                    );
-                  });
-                }, 1000);
-              }
-            );
-          });
-        }, 1500);
+        setTimeout(() => startBattle(false), 1500);
       };
       waitForDialogue();
       break;
