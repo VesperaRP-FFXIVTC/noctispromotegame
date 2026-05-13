@@ -306,6 +306,14 @@ function advanceDialogue() {
   if (scene && scene.clues) {
     const remaining = scene.clues.filter(c => !collectedClues.find(cc => cc.id === c.id));
     if (remaining.length > 0) return;
+    // 線索全部收集完，直接執行 _onComplete（觸發 puzzle）
+    if (box._onComplete) {
+      const cb = box._onComplete;
+      box._onComplete = null;
+      cb();
+      return;
+    }
+    return; // 沒有 _onComplete 也不往下走，避免誤跳
   }
 
   // Execute stored callback or go to next scene
