@@ -499,14 +499,13 @@ function checkMemoryOrder(sceneId) {
     return;
   }
   // 全部正確
-  {
-    errorEl.style.color = '#2ecc71';
-    errorEl.textContent = '碎片拼合的瞬間，門上的文字發出微弱的光芒……';
-    setTimeout(() => {
-      closePuzzle();
-      loadScene('act3_solved');
-    }, 1600);
-  }
+  errorEl.style.color = '#2ecc71';
+  errorEl.textContent = '碎片拼合的瞬間，門上的文字發出微弱的光芒……';
+  setTimeout(() => {
+    closePuzzle();
+    loadScene('act3_solved');
+  }, 1600);
+}
 
 // ── Whisper Battle: 長廊精神攻擊彈幕 (Act 3.5) ───────────────────────────────
 
