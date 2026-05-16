@@ -1130,15 +1130,14 @@ function _wbActivateShield() {
   if (countEl) countEl.textContent = '×' + s.shieldsLeft;
 
   // 清除所有彈幕
+  // 清理子彈池和 rAF
+  if (_wbRafId) { cancelAnimationFrame(_wbRafId); _wbRafId = null; }
+  _wbBulletPool = [];
+
   const bulletsContainer = document.getElementById('wb-bullets');
   if (bulletsContainer) {
     const bullets = bulletsContainer.querySelectorAll('div');
     bullets.forEach(bullet => {
-      // 停止彈幕的移動 interval
-      if (bullet._moveInterval) {
-        clearInterval(bullet._moveInterval);
-        bullet._moveInterval = null;
-      }
       bullet.style.transition = 'opacity 0.3s, transform 0.3s';
       bullet.style.opacity = '0';
       bullet.style.transform = 'scale(0.5)';
@@ -1447,60 +1446,83 @@ function _wbSpawnBurst(speed) {
   }
 }
 
-function _wbMoveBullet(bullet, startX, startY, dirX, dirY, multiplier, s) {
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-  let bx = startX, by = startY;
-  let lifetime = 0;
-  const maxLifetime = 7000; // 7秒後自動消失
+// 全域子彈池，統一用單一 rAF 管理
+let _wbBulletPool = [];
+let _wbRafId = null;
 
-  const move = setInterval(() => {
-    if (!s.active || !bullet.parentNode) {
-      clearInterval(move);
-      if (bullet.parentNode) bullet.remove();
-      return;
-    }
+function _wbStartLoop() {
+  if (_wbRafId) return;
+  function loop() {
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const s = whisperBattleState;
+    const alive = [];
 
-    lifetime += 16;
-    if (lifetime >= maxLifetime) {
-      bullet.style.transition = 'opacity 0.5s';
-      bullet.style.opacity = '0';
-      setTimeout(() => bullet.remove(), 500);
-      clearInterval(move);
-      return;
-    }
-
-    bx += dirX * multiplier;
-    by += dirY * multiplier;
-    bullet.style.left = bx + 'px';
-    bullet.style.top  = by + 'px';
-
-    const dx = bx - s.px;
-    const dy = by - s.py;
-    if (Math.sqrt(dx*dx + dy*dy) < 24) {
-      if (s.shieldActive) {
-        bullet.style.color = 'rgba(212,168,75,0.9)';
-        bullet.style.opacity = '0';
-        setTimeout(() => bullet.remove(), 250);
-        clearInterval(move);
-        return;
-      } else if (!s.invincible) {
-        _wbHitPlayer();
-        bullet.style.opacity = '0';
-        setTimeout(() => bullet.remove(), 200);
-        clearInterval(move);
-        return;
+    for (let i = 0; i < _wbBulletPool.length; i++) {
+      const b = _wbBulletPool[i];
+      if (!b.el.parentNode || !s || !s.active) {
+        if (b.el.parentNode) b.el.remove();
+        continue;
       }
+
+      b.lifetime += 16;
+      if (b.lifetime >= 7000) {
+        b.el.style.opacity = '0';
+        setTimeout(() => b.el.remove(), 500);
+        continue;
+      }
+
+      b.x += b.dx * b.mult;
+      b.y += b.dy * b.mult;
+      b.el.style.left = b.x + 'px';
+      b.el.style.top  = b.y + 'px';
+
+      // 碰撞偵測
+      const ddx = b.x - s.px;
+      const ddy = b.y - s.py;
+      if (Math.sqrt(ddx*ddx + ddy*ddy) < 24) {
+        if (s.shieldActive) {
+          b.el.style.opacity = '0';
+          setTimeout(() => b.el.remove(), 250);
+          continue;
+        } else if (!s.invincible) {
+          _wbHitPlayer();
+          b.el.style.opacity = '0';
+          setTimeout(() => b.el.remove(), 200);
+          continue;
+        }
+      }
+
+      // 出界
+      if (b.x < -250 || b.x > W+250 || b.y < -150 || b.y > H+150) {
+        b.el.remove();
+        continue;
+      }
+
+      alive.push(b);
     }
 
-    if (bx < -250 || bx > W+250 || by < -150 || by > H+150) {
-      clearInterval(move);
-      bullet.remove();
-    }
-  }, 16);
+    _wbBulletPool = alive;
 
-  // 儲存 interval ID 到彈幕元素上，以便清除時停止
-  bullet._moveInterval = move;
+    if (_wbBulletPool.length > 0 && s && s.active) {
+      _wbRafId = requestAnimationFrame(loop);
+    } else {
+      _wbRafId = null;
+    }
+  }
+  _wbRafId = requestAnimationFrame(loop);
+}
+
+function _wbMoveBullet(bullet, startX, startY, dirX, dirY, multiplier, s) {
+  // 把子彈加入統一管理池
+  _wbBulletPool.push({
+    el: bullet,
+    x: startX, y: startY,
+    dx: dirX, dy: dirY,
+    mult: multiplier,
+    lifetime: 0
+  });
+  _wbStartLoop();
 }
 
 function _wbHitPlayer() {
