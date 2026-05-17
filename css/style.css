@@ -335,26 +335,58 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--dark
 /* ===== COUNTDOWN SCREEN ===== */
 .countdown-bg {
   position: absolute; inset: 0;
+  background-image: url('../assets/images/bg-noctis-inside.png');
+  background-size: cover;
+  background-position: center;
+  filter: brightness(0.3);
+}
+
+/* 若圖片載入失敗的漸層備案 */
+.countdown-bg::after {
+  content: '';
+  position: absolute; inset: 0;
   background:
-    radial-gradient(ellipse at 50% 40%, rgba(123,79,166,0.3) 0%, transparent 60%),
-    radial-gradient(ellipse at 50% 80%, rgba(192,132,252,0.1) 0%, transparent 50%),
-    linear-gradient(180deg, #0d0a0f 0%, #1a0a2a 50%, #0d0a0f 100%);
-  /* Replace with: background-image: url('../assets/images/bg-noctis.jpg'); background-size: cover; */
+    radial-gradient(ellipse at 50% 40%, rgba(123,79,166,0.5) 0%, transparent 60%),
+    linear-gradient(180deg, #0d0a0f 0%, #1a0a2a 60%, #0d0a0f 100%);
+}
+
+/* 粒子 canvas */
+.countdown-particles {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  z-index: 1; pointer-events: none;
 }
 
 .countdown-content {
-  position: relative; z-index: 1;
+  position: relative; z-index: 2;
   display: flex; flex-direction: column; align-items: center;
-  gap: 1.2rem; text-align: center;
+  gap: 1rem; text-align: center;
+  padding: 2rem;
+}
+
+/* 你找到了這裡 */
+.countdown-arrived {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  letter-spacing: 0.5em;
+  color: rgba(212,168,75,0.6);
+  animation: fadeInUp 1.5s ease forwards;
+  opacity: 0;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .countdown-label {
   font-family: var(--font-title);
-  font-size: clamp(3rem, 8vw, 5rem);
+  font-size: clamp(4rem, 10vw, 7rem);
   color: var(--purple-glow);
-  letter-spacing: 0.4em;
+  letter-spacing: 0.5em;
   text-shadow: 0 0 40px rgba(192,132,252,0.7), 0 0 80px rgba(192,132,252,0.3);
-  animation: purpleGlow 3s ease-in-out infinite alternate;
+  animation: purpleGlow 3s ease-in-out infinite alternate, fadeInUp 1s ease 0.3s forwards;
+  opacity: 0;
 }
 
 @keyframes purpleGlow {
@@ -365,18 +397,64 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--dark
 .countdown-sublabel {
   font-family: var(--font-body); font-size: 0.9rem;
   letter-spacing: 0.4em; color: rgba(192,132,252,0.7);
+  animation: fadeInUp 1s ease 0.6s forwards;
+  opacity: 0;
 }
 
+/* 分隔線 */
+.countdown-divider {
+  width: 120px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(192,132,252,0.5), transparent);
+  margin: 0.5rem 0;
+  animation: fadeInUp 1s ease 0.8s forwards;
+  opacity: 0;
+}
+
+.countdown-opening-date {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  letter-spacing: 0.4em;
+  color: rgba(192,132,252,0.4);
+  animation: fadeInUp 1s ease 0.9s forwards;
+  opacity: 0;
+}
+
+/* 計時器 */
 .countdown-timer {
   font-family: var(--font-title);
-  font-size: clamp(2rem, 5vw, 3.5rem);
   color: var(--cream);
-  display: flex; align-items: baseline; gap: 0.3rem;
+  display: flex; align-items: center; gap: 1rem;
+  animation: fadeInUp 1s ease 1s forwards;
+  opacity: 0;
 }
 
-.cd-sep {
-  font-family: var(--font-body); font-size: 0.9rem;
-  color: rgba(192,132,252,0.6); margin-right: 0.5rem;
+.cd-block {
+  display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(192,132,252,0.2);
+  padding: 1rem 1.5rem;
+  min-width: 90px;
+  backdrop-filter: blur(4px);
+}
+
+.cd-block span:first-child {
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 0 20px rgba(192,132,252,0.5);
+}
+
+.cd-unit {
+  font-family: var(--font-body);
+  font-size: 0.7rem !important;
+  letter-spacing: 0.2em;
+  color: rgba(192,132,252,0.6);
+}
+
+.cd-colon {
+  font-size: clamp(2rem, 4vw, 3rem);
+  color: rgba(192,132,252,0.4);
+  margin-bottom: 1rem;
 }
 
 .btn-official {
@@ -384,14 +462,17 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--dark
   letter-spacing: 0.2em;
   color: var(--dark);
   background: var(--purple-glow);
-  padding: 0.8rem 2.5rem;
+  padding: 0.9rem 3rem;
   text-decoration: none;
   transition: all 0.3s;
   margin-top: 1rem;
+  animation: fadeInUp 1s ease 1.2s forwards;
+  opacity: 0;
 }
 .btn-official:hover {
   background: #d8b4fe;
   box-shadow: 0 0 30px rgba(192,132,252,0.6);
+  transform: translateY(-2px);
 }
 
 /* Skip button (testing) — 視覺隱藏，但仍可點擊 */
